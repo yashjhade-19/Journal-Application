@@ -1,9 +1,9 @@
-package net.engineeringdigest.journalApp.repository;
+package com.yashjhade.journalApp.repository;
 
 //controller call---> service--->repository
 
 
-import net.engineeringdigest.journalApp.entity.JournalEntry;
+import com.yashjhade.journalApp.entity.JournalEntry;
 import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.repository.MongoRepository;
 

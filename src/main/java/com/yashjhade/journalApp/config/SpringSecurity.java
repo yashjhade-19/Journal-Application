@@ -1,5 +1,7 @@
-package net.engineeringdigest.journalApp.config;
+package com.yashjhade.journalApp.config;
 
+import com.yashjhade.journalApp.filter.JwtFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,12 +14,17 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SpringSecurity {
 
-    private final UserDetailsService userDetailsService;
+    @Autowired
+    private JwtFilter jwtFilter;
+
+    @Autowired
+    private  UserDetailsService userDetailsService;
 
     public SpringSecurity(UserDetailsService userDetailsService) {
         this.userDetailsService = userDetailsService;
@@ -33,11 +40,10 @@ public class SpringSecurity {
                 .antMatchers("/user/**", "/journal/**").authenticated()
                 .antMatchers( "/admin/**").hasRole("ADMIN")
                 .and()
-                .httpBasic()
-                .and()
+
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

@@ -1,4 +1,4 @@
-package net.engineeringdigest.journalApp;
+package com.yashjhade.journalApp;
 
 
 import org.springframework.stereotype.Component;

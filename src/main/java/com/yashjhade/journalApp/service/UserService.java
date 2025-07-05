@@ -1,8 +1,9 @@
-package net.engineeringdigest.journalApp.service;
+package com.yashjhade.journalApp.service;
 
 import lombok.NonNull;
-import net.engineeringdigest.journalApp.entity.User;
-import net.engineeringdigest.journalApp.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
+import com.yashjhade.journalApp.entity.User;
+import com.yashjhade.journalApp.repository.UserRepository;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -11,7 +12,10 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+
+
 @Component
+@Slf4j
 public class UserService {
 
     @Autowired
@@ -20,11 +24,21 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;   // ← NOT static!
 
+
+//   private static final Logger logger= LoggerFactory.getLogger(UserService.class);
+
     public void saveNewUser(User user){
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+    try{    user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setRoles(Arrays.asList("USER"));
         userRepository.save(user);
     }
+    catch(Exception e){
+      log.info("yjjjjjjjjjjjjjjjjjjjjjj");
+      log.error("yjjjjjjjjjjjjjjjjjjjjjj");
+      log.warn("yjjjjjjjjjjjjjjjjjjjjjj");
+      log.debug("yjjjjjjjjjjjjjjjjjjjjjj");
+      log.trace("yjjjjjjjjjjjjjjjjjjjjjj");
+    }}
 
     public void saveAdmin(User user){
         user.setPassword(passwordEncoder.encode(user.getPassword()));
