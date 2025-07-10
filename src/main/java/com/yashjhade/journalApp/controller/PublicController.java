@@ -40,12 +40,12 @@ public class PublicController {
         return "This is public!";
     }
 
-
     @PostMapping("/signup")
     public void signup(@RequestBody User user){
 
         userService.saveNewUser(user);
     }
+
 
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody User user) {
