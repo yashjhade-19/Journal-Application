@@ -4,6 +4,7 @@ import com.yashjhade.journalApp.filter.JwtFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -20,7 +21,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-
 @Configuration
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SpringSecurity {
@@ -38,18 +38,47 @@ public class SpringSecurity {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // Enable and configure CORS first
+                .cors().configurationSource(corsConfigurationSource()).and()
+                // Then disable CSRF
                 .csrf().disable()
+                // Configure authorization
                 .authorizeRequests()
+                // Allow preflight OPTIONS requests
+                .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // Public endpoints
                 .antMatchers("/public/**").permitAll()
-
+                // Authenticated endpoints
                 .antMatchers("/user/**", "/journal/**").authenticated()
+                // Admin-only endpoints
                 .antMatchers("/admin/**").hasRole("ADMIN")
                 .and()
-
+                // Session management
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+
+        // Add JWT filter
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000",  // Your frontend URL
+                "https://your-production-domain.com" // Production URL
+        ));
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+        ));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean
@@ -72,18 +101,5 @@ public class SpringSecurity {
     }
 
 
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",  // Your React app
-                "https://your-production-domain.com"
-        ));
-        config.setAllowedMethods(Arrays.asList("*")); // GET, POST, etc.
-        config.setAllowedHeaders(Arrays.asList("*")); // Allow JWT header
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config); // Apply to all routes
-        return source;
-    }
 }
