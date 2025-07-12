@@ -1,6 +1,9 @@
 package com.yashjhade.journalApp.controller;
 
 
+import com.yashjhade.journalApp.dto.UserDTO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import com.yashjhade.journalApp.entity.User;
 import com.yashjhade.journalApp.repository.UserRepositoryImpl;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/public")
 @Slf4j
+@Tag(name = "Public APIs")
 public class PublicController {
 
     @Autowired
@@ -40,15 +44,25 @@ public class PublicController {
         return "This is public!";
     }
 
-    @PostMapping("/signup")
-    public void signup(@RequestBody User user){
 
-        userService.saveNewUser(user);
+    @PostMapping("/signup")
+    @Operation(summary="Sighup user")
+    public void signup(@RequestBody UserDTO user) {
+        User newUser = new User();
+        newUser.setEmail(user.getEmail());
+        newUser.setUserName(user.getUserName());
+        newUser.setPassword(user.getPassword());
+        newUser.setSentimentAnalysis(user.isSentimentAnalysis());
+        userService.saveNewUser(newUser);
     }
 
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody User user) {
+    @Operation(summary="Login User")
+    public ResponseEntity<String> loginuser(@RequestBody UserDTO user) {
+//        User newUser = new User();
+//        newUser.setUserName(user.getUserName());
+//        newUser.setPassword(user.getPassword());
         try{
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(user.getUserName(), user.getPassword()));

@@ -1,7 +1,7 @@
 package com.yashjhade.journalApp.controller;
 
-        ;
-import lombok.extern.slf4j.Slf4j;
+        import io.swagger.v3.oas.annotations.Operation;
+        import lombok.extern.slf4j.Slf4j;
 import com.yashjhade.journalApp.entity.User;
 import com.yashjhade.journalApp.repository.UserRepository;
 import com.yashjhade.journalApp.service.UserDetailsServiceImpl;
