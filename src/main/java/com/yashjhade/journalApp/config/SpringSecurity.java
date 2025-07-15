@@ -68,7 +68,7 @@ public class SpringSecurity {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",  // Your frontend URL
-                "https://your-production-domain.com" // Production URL
+                "https://journal-application-production.up.railway.app" // Production URL
         ));
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS"
