@@ -26,9 +26,6 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private WeatherService weatherService;
-
     @GetMapping("/test")
     public String testPublic() {
         return "This is  verified User!";
@@ -58,16 +55,5 @@ return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 }
 
-@GetMapping
-@Operation(summary="Greet user weather API")
-    public ResponseEntity<?> greeting(){
-    Authentication authentication=SecurityContextHolder.getContext().getAuthentication();
-     WeatherResponse weatherResponse = weatherService.getWeather("Mumbai");
-     String greeting="";
-     if(weatherResponse!=null){
-         greeting= " ,Weather feels like " +weatherResponse.getCurrent().getFeelslike();
-     }
-    return new ResponseEntity<>("hi " + authentication.getName() + greeting,HttpStatus.OK);
 
-}
 }
