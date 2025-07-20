@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import com.yashjhade.journalApp.entity.JournalEntry;
 import com.yashjhade.journalApp.entity.User;
 import com.yashjhade.journalApp.repository.JournalEntryRepository;
-import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -16,68 +15,58 @@ import java.util.Optional;
 @Slf4j
 public class JournalEntryService {
 
-
     @Autowired
     private JournalEntryRepository journalEntryRepository;
 
     @Autowired
     private UserService userService;
-//
-//public void  saveEntry(JournalEntry journalEntry, String userName){
-//    User user= userService.findByUserName(userName);
-//    JournalEntry saved = journalEntryRepository.save(journalEntry);
-//    user.getJournalEntries().add(saved);
-//    userService.saveEntry(user);
-//}
 
-
-
-    public void saveEntry(JournalEntry journalEntry, String userName) {
+    public JournalEntry saveEntry(JournalEntry journalEntry, String userName) {
         User user = userService.findByUserName(userName);
-
-       try{ if (user == null) {
+        if (user == null) {
             throw new RuntimeException("User not found: " + userName);
         }
+
         // Save journal entry
         JournalEntry saved = journalEntryRepository.save(journalEntry);
+
         // Initialize journalEntries list if null
         if (user.getJournalEntries() == null) {
             user.setJournalEntries(new ArrayList<>());
         }
+
+        // Add entry to user's journal list
         user.getJournalEntries().add(saved);
-        // Save user with new entry
         userService.saveUser(user);
+
+        return saved;
     }
-       catch (Exception e) {
-            log.error("Error",e);       }
-       }
 
-
-
-    public void saveEntry(JournalEntry journalEntry) {
-
-        journalEntryRepository.save(journalEntry);
+    public JournalEntry saveEntry(JournalEntry journalEntry) {
+        return journalEntryRepository.save(journalEntry);
     }
 
     public List<JournalEntry> getAll() {
-    return journalEntryRepository.findAll();
+        return journalEntryRepository.findAll();
     }
 
-    public Optional<JournalEntry> findById(ObjectId id){
-    return journalEntryRepository.findById(id);
+    public Optional<JournalEntry> findById(String id) { // Changed to String
+        return journalEntryRepository.findById(id);
     }
 
-    public void deleteById(ObjectId id, String userName) {
+    public void deleteById(String id, String userName) { // Changed to String
         try {
             User user = userService.findByUserName(userName);
-
-            boolean removed = user.getJournalEntries().removeIf(x -> x.getId().equals(id));
-            if (removed) {
-                userService.saveUser(user);
-                journalEntryRepository.deleteById(id);
+            if (user != null && user.getJournalEntries() != null) {
+                boolean removed = user.getJournalEntries().removeIf(x -> x.getId().equals(id));
+                if (removed) {
+                    userService.saveUser(user);
+                    journalEntryRepository.deleteById(id);
+                }
             }
         } catch (Exception e) {
-            System.out.println(e);
+            log.error("Error deleting journal entry", e);
+            throw e;
         }
     }
 }
