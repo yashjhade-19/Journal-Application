@@ -1,17 +1,14 @@
 package com.yashjhade.journalApp.controller;
 
-        import io.swagger.v3.oas.annotations.Operation;
-        import lombok.extern.slf4j.Slf4j;
 import com.yashjhade.journalApp.entity.User;
 import com.yashjhade.journalApp.repository.UserRepository;
 import com.yashjhade.journalApp.service.UserDetailsServiceImpl;
 import com.yashjhade.journalApp.utilis.JwtUtil;
+import io.swagger.v3.oas.annotations.Operation;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -34,11 +31,14 @@ public class GoogleAuthController {
     @Value("${spring.security.oauth2.client.registration.google.client-secret}")
     private String clientSecret;
 
+    @Value("${google.redirect.uri}")
+    private String redirectUri;
+
     @Autowired
     private RestTemplate restTemplate;
 
     @Autowired
-    UserDetailsServiceImpl userDetailsService;
+    private UserDetailsServiceImpl userDetailsService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -49,57 +49,82 @@ public class GoogleAuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Operation(summary = "Get Google OAuth2 URL")
+    @GetMapping("/url")
+    public ResponseEntity<?> getGoogleAuthUrl() {
+        String authUrl = "https://accounts.google.com/o/oauth2/auth?" +
+                "client_id=" + clientId +
+                "&redirect_uri=" + redirectUri +
+                "&response_type=code" +
+                "&scope=email%20profile" +
+                "&access_type=offline" +
+                "&prompt=consent";
+
+        return ResponseEntity.ok(Collections.singletonMap("url", authUrl));
+    }
+
     @GetMapping("/callback")
     public ResponseEntity<?> handleGoogleCallback(@RequestParam String code) {
         try {
+            // Step 1: Exchange authorization code for tokens
             String tokenEndpoint = "https://oauth2.googleapis.com/token";
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
             params.add("code", code);
             params.add("client_id", clientId);
             params.add("client_secret", clientSecret);
-            params.add("redirect_uri", "https://developers.google.com/oauthplayground");
+            params.add("redirect_uri", redirectUri);
             params.add("grant_type", "authorization_code");
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+
             ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(tokenEndpoint, request, Map.class);
+            if (tokenResponse.getStatusCode() != HttpStatus.OK) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token exchange failed");
+            }
+
+            // Step 2: Get user info from ID token
             String idToken = (String) tokenResponse.getBody().get("id_token");
             String userInfoUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken;
             ResponseEntity<Map> userInfoResponse = restTemplate.getForEntity(userInfoUrl, Map.class);
+
             if (userInfoResponse.getStatusCode() == HttpStatus.OK) {
                 Map<String, Object> userInfo = userInfoResponse.getBody();
                 String email = (String) userInfo.get("email");
-                UserDetails userDetails = null;
-                try{
-                    userDetails = userDetailsService.loadUserByUsername(email);
-                }catch (Exception e){
-                    User user = new User();
+                String name = (String) userInfo.get("name");
+                String picture = (String) userInfo.get("picture");
+
+                // Step 3: Create or find user in database
+                User user = userRepository.findByEmail(email);
+                if (user == null) {
+                    user = new User();
                     user.setEmail(email);
-                    user.setUserName(email);
+                    user.setUserName(name != null ? name : email.split("@")[0]);
                     user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
                     user.setRoles(Arrays.asList("USER"));
+
                     userRepository.save(user);
                 }
-                String jwtToken = jwtUtil.generateToken(email);
-                return ResponseEntity.ok(Collections.singletonMap("token", jwtToken));
-            }
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            log.error("Exception occurred while handleGoogleCallback ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
 
+                // Step 4: Generate JWT token
+                String jwtToken = jwtUtil.generateToken(email);
+
+                // Step 5: Return token and user info
+                Map<String, Object> response = new HashMap<>();
+                response.put("token", jwtToken);
+                response.put("user", Map.of(
+                        "email", user.getEmail(),
+                        "userName", user.getUserName()
+
+                ));
+
+                return ResponseEntity.ok(response);
+            }
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User info fetch failed");
+        } catch (Exception e) {
+            log.error("Exception occurred while handling Google callback", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Authentication failed");
+        }
     }
 }
-
-/*
-
-https://accounts.google.com/o/oauth2/auth?
-client_id=YOUR_CLIENT_ID
-    &redirect_uri=YOUR_REDIRECT_URI
-    &response_type=code
-    &scope=email profile
-    &access_type=offline
-    &prompt=consent
-
-*/
