@@ -2,7 +2,6 @@ package com.yashjhade.journalApp.controller;
 
 import com.yashjhade.journalApp.entity.User;
 import com.yashjhade.journalApp.repository.UserRepository;
-import com.yashjhade.journalApp.service.UserDetailsServiceImpl;
 import com.yashjhade.journalApp.utilis.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
@@ -38,9 +37,6 @@ public class GoogleAuthController {
     private RestTemplate restTemplate;
 
     @Autowired
-    private UserDetailsServiceImpl userDetailsService;
-
-    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -51,7 +47,7 @@ public class GoogleAuthController {
 
     @Operation(summary = "Get Google OAuth2 URL")
     @GetMapping("/url")
-    public ResponseEntity<?> getGoogleAuthUrl() {
+    public ResponseEntity<String> getGoogleAuthUrl() {
         String authUrl = "https://accounts.google.com/o/oauth2/auth?" +
                 "client_id=" + clientId +
                 "&redirect_uri=" + redirectUri +
@@ -60,7 +56,8 @@ public class GoogleAuthController {
                 "&access_type=offline" +
                 "&prompt=consent";
 
-        return ResponseEntity.ok(Collections.singletonMap("url", authUrl));
+        // Return the URL as a plain string instead of JSON object
+        return ResponseEntity.ok(authUrl);
     }
 
     @GetMapping("/callback")
@@ -93,7 +90,6 @@ public class GoogleAuthController {
                 Map<String, Object> userInfo = userInfoResponse.getBody();
                 String email = (String) userInfo.get("email");
                 String name = (String) userInfo.get("name");
-                String picture = (String) userInfo.get("picture");
 
                 // Step 3: Create or find user in database
                 User user = userRepository.findByEmail(email);
@@ -110,14 +106,15 @@ public class GoogleAuthController {
                 // Step 4: Generate JWT token
                 String jwtToken = jwtUtil.generateToken(email);
 
-                // Step 5: Return token and user info
+                // Step 5: Return token and user info in consistent format
                 Map<String, Object> response = new HashMap<>();
                 response.put("token", jwtToken);
-                response.put("user", Map.of(
-                        "email", user.getEmail(),
-                        "userName", user.getUserName()
 
-                ));
+                // Create user data map with consistent structure
+                Map<String, Object> userData = new HashMap<>();
+                userData.put("email", user.getEmail());
+                userData.put("userName", user.getUserName());
+                response.put("user", userData);
 
                 return ResponseEntity.ok(response);
             }
