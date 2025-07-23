@@ -67,6 +67,7 @@ public class SpringSecurity {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
+                "https://yj-journalapp.netlify.app",
                 "http://localhost:3000",  // Your frontend URL
                 "https://journal-application-production.up.railway.app" // Production URL
         ));
