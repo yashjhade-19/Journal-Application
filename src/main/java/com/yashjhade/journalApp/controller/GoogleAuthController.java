@@ -115,20 +115,23 @@ public class GoogleAuthController {
             // Step 4: Generate JWT token
             String jwtToken = jwtUtil.generateToken(user.getUserName());
 
-            // Step 5: Redirect to frontend with token and user data
-            String frontendRedirectUrl = "http://localhost:3000/auth-handler"
-                    + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8)
-                    + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8)
-                    + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
-
-            response.sendRedirect(frontendRedirectUrl);
             // Inside handleGoogleCallback
             log.info("Received Google callback with code: {}", code);
 // ...
             log.info("User info: email={}, name={}", email, name);
 // ...
             log.info("Generated token: {}", jwtToken);
-            log.info("Redirecting to: {}", frontendRedirectUrl);
+
+
+            // Step 5: Redirect to frontend with token and user data
+            // Replace the redirect URL construction:
+            String frontendRedirectUrl = "http://localhost:3000/auth-handler"
+                    + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8.toString())
+                    + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8.toString())
+                    + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8.toString());
+
+            response.sendRedirect(frontendRedirectUrl);
+
 
         } catch (Exception e) {
             log.error("EXCEPTION DETAILS: ", e);
