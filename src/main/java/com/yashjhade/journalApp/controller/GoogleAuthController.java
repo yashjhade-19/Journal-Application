@@ -87,7 +87,7 @@ public class GoogleAuthController {
 
             ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(tokenEndpoint, request, Map.class);
             if (tokenResponse.getStatusCode() != HttpStatus.OK) {
-                response.sendRedirect("frontendUrl/login?error=token_failed");
+                response.sendRedirect(frontendUrl+"/login?error=token_failed");
                 return;
             }
 
@@ -97,7 +97,7 @@ public class GoogleAuthController {
             ResponseEntity<Map> userInfoResponse = restTemplate.getForEntity(userInfoUrl, Map.class);
 
             if (userInfoResponse.getStatusCode() != HttpStatus.OK) {
-                response.sendRedirect("frontendUrl/login?error=userinfo_failed");
+                response.sendRedirect(frontendUrl+"/login?error=userinfo_failed");
                 return;
             }
 
@@ -129,7 +129,7 @@ public class GoogleAuthController {
 
             // Step 5: Redirect to frontend with token and user data
             // Replace the redirect URL construction:
-            String frontendRedirectUrl = "frontendUrl/auth-handler"
+            String frontendRedirectUrl = frontendUrl + "/auth-handler"
                     + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8.toString())
                     + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8.toString())
                     + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8.toString());
@@ -139,7 +139,7 @@ public class GoogleAuthController {
 
         } catch (Exception e) {
             log.error("EXCEPTION DETAILS: ", e);
-            response.sendRedirect("frontendUrl/login?error=server_error");
+            response.sendRedirect(frontendUrl+"/login?error=server_error");
 
         }
     }
