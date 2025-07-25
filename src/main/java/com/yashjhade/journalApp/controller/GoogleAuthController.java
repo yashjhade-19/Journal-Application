@@ -87,7 +87,7 @@ public class GoogleAuthController {
 
             ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(tokenEndpoint, request, Map.class);
             if (tokenResponse.getStatusCode() != HttpStatus.OK) {
-                response.sendRedirect(frontendUrl+"/login?error=token_failed");
+                response.sendRedirect(frontendUrl + "/login?error=token_failed");
                 return;
             }
 
@@ -97,50 +97,65 @@ public class GoogleAuthController {
             ResponseEntity<Map> userInfoResponse = restTemplate.getForEntity(userInfoUrl, Map.class);
 
             if (userInfoResponse.getStatusCode() != HttpStatus.OK) {
-                response.sendRedirect(frontendUrl+"/login?error=userinfo_failed");
+                response.sendRedirect(frontendUrl + "/login?error=userinfo_failed");
                 return;
             }
 
             Map<String, Object> userInfo = userInfoResponse.getBody();
-            String email = (String) userInfo.get("email");
+            String email = ((String) userInfo.get("email")).toLowerCase(); // Normalize email case
             String name = (String) userInfo.get("name");
+
+            log.info("Processing Google login for email: {}", email);
 
             // Step 3: Create or find user in database
             User user = userRepository.findByEmail(email);
+
             if (user == null) {
-                user = new User();
-                user.setEmail(email);
-                user.setUserName(name != null ? name : email.split("@")[0]);
-                user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
-                user.setRoles(Collections.singletonList("USER"));
-                userRepository.save(user);
+                log.info("Creating new user for email: {}", email);
+                try {
+                    user = new User();
+                    user.setEmail(email);
+                    user.setUserName(name != null ? name : email.split("@")[0]);
+
+                    // Generate simpler temporary password
+                    String tempPassword = UUID.randomUUID().toString().substring(0, 20);
+                    user.setPassword(passwordEncoder.encode(tempPassword));
+
+                    user.setRoles(Collections.singletonList("USER"));
+                    user = userRepository.save(user);
+                    log.info("Created new user ID: {}", user.getId());
+                } catch (DataIntegrityViolationException e) {
+                    log.warn("Duplicate user detected after initial check", e);
+                    user = userRepository.findByEmail(email);
+                    if (user == null) {
+                        throw new RuntimeException("User creation failed after duplicate detection");
+                    }
+                } catch (Exception e) {
+                    log.error("User creation failed for {}", email, e);
+                    response.sendRedirect(frontendUrl + "/login?error=user_creation_failed");
+                    return;
+                }
+            } else {
+                log.info("Existing user found: {}", user.getId());
             }
 
             // Step 4: Generate JWT token
             String jwtToken = jwtUtil.generateToken(user.getUserName());
+            log.info("Generated token for {}: {}", user.getUserName(), jwtToken);
 
-            // Inside handleGoogleCallback
-            log.info("Received Google callback with code: {}", code);
-// ...
-            log.info("User info: email={}, name={}", email, name);
-// ...
-            log.info("Generated token: {}", jwtToken);
-
-
-            // Step 5: Redirect to frontend with token and user data
-            // Replace the redirect URL construction:
+            // Step 5: Redirect to frontend
             String frontendRedirectUrl = frontendUrl + "/auth-handler"
                     + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8.toString())
                     + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8.toString())
                     + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8.toString());
 
+            log.info("Redirecting to: {}", frontendRedirectUrl);
             response.sendRedirect(frontendRedirectUrl);
 
-
         } catch (Exception e) {
-            log.error("EXCEPTION DETAILS: ", e);
-            response.sendRedirect(frontendUrl+"/login?error=server_error");
-
+            log.error("GOOGLE CALLBACK FAILURE: ", e);
+            response.sendRedirect(frontendUrl + "/login?error=server_error&message=" +
+                    URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8.toString()));
         }
     }
 }
