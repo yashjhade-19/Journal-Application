@@ -113,10 +113,10 @@ public class GoogleAuthController {
             }
 
             // Step 4: Generate JWT token
-            String jwtToken = jwtUtil.generateToken(user.getUserName());
+            String jwtToken = jwtUtil.generateToken(email);
 
             // Step 5: Redirect to frontend with token and user data
-            String frontendRedirectUrl = "http://localhost:3000/"
+            String frontendRedirectUrl = "http://localhost:3000/auth-handler"
                     + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8)
                     + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8)
                     + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
