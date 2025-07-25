@@ -122,10 +122,18 @@ public class GoogleAuthController {
                     + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
 
             response.sendRedirect(frontendRedirectUrl);
+            // Inside handleGoogleCallback
+            log.info("Received Google callback with code: {}", code);
+// ...
+            log.info("User info: email={}, name={}", email, name);
+// ...
+            log.info("Generated token: {}", jwtToken);
+            log.info("Redirecting to: {}", frontendRedirectUrl);
 
         } catch (Exception e) {
             log.error("EXCEPTION DETAILS: ", e);
             response.sendRedirect("http://localhost:3000/login?error=server_error");
+
         }
     }
 }
