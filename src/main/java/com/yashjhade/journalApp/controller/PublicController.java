@@ -2,6 +2,7 @@ package com.yashjhade.journalApp.controller;
 
 
 import com.yashjhade.journalApp.dto.UserDTO;
+import com.yashjhade.journalApp.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,7 @@ public class PublicController {
     private UserService userService;
 
     @Autowired
-    private UserRepositoryImpl userRepositoryImpl;
+    private UserRepository userRepository;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -46,14 +47,23 @@ public class PublicController {
 
 
     @PostMapping("/signup")
-    @Operation(summary="Sighup user")
-    public void signup(@RequestBody UserDTO user) {
+    @Operation(summary="Signup user")
+    public ResponseEntity<String> signup(@RequestBody UserDTO user) {
+        if (userRepository.findByEmail(user.getEmail()) != null) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body("User with this email already exists");
+        }
+
         User newUser = new User();
         newUser.setEmail(user.getEmail());
         newUser.setUserName(user.getUserName());
         newUser.setPassword(user.getPassword());
         newUser.setSentimentAnalysis(user.isSentimentAnalysis());
+
         userService.saveNewUser(newUser);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("User created successfully");
     }
 
 
@@ -66,6 +76,7 @@ public class PublicController {
         try{
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(user.getUserName(), user.getPassword()));
+
             UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUserName());
             String jwt = jwtUtil.generateToken(userDetails.getUsername());
             return new ResponseEntity<>(jwt, HttpStatus.OK);
