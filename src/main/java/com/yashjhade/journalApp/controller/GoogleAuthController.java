@@ -86,18 +86,23 @@ public class GoogleAuthController {
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
             ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(tokenEndpoint, request, Map.class);
-            if (tokenResponse.getStatusCode() != HttpStatus.OK) {
-                response.sendRedirect(frontendUrl+"/login?error=token_failed");
+            if (tokenResponse.getStatusCode() != HttpStatus.OK || tokenResponse.getBody() == null) {
+                response.sendRedirect(frontendUrl + "/login?error=token_failed");
                 return;
             }
 
-            // Step 2: Get user info from ID token
             String idToken = (String) tokenResponse.getBody().get("id_token");
+            if (idToken == null) {
+                response.sendRedirect(frontendUrl + "/login?error=missing_id_token");
+                return;
+            }
+
+            // Step 2: Get user info
             String userInfoUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken;
             ResponseEntity<Map> userInfoResponse = restTemplate.getForEntity(userInfoUrl, Map.class);
 
-            if (userInfoResponse.getStatusCode() != HttpStatus.OK) {
-                response.sendRedirect(frontendUrl+"/login?error=userinfo_failed");
+            if (userInfoResponse.getStatusCode() != HttpStatus.OK || userInfoResponse.getBody() == null) {
+                response.sendRedirect(frontendUrl + "/login?error=userinfo_failed");
                 return;
             }
 
@@ -105,7 +110,12 @@ public class GoogleAuthController {
             String email = (String) userInfo.get("email");
             String name = (String) userInfo.get("name");
 
-            // Step 3: Create or find user in database
+            if (email == null) {
+                response.sendRedirect(frontendUrl + "/login?error=missing_email");
+                return;
+            }
+
+            // Step 3: Create/find user
             User user = userRepository.findByEmail(email);
             if (user == null) {
                 user = new User();
@@ -113,40 +123,26 @@ public class GoogleAuthController {
                 user.setUserName(name != null ? name : email.split("@")[0]);
                 user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
                 user.setRoles(Collections.singletonList("USER"));
-                user = userRepository.save(user); // 👈 Save AND reassign
+                user = userRepository.save(user);
             }
 
-
-            // Step 4: Generate JWT token
+            // Step 4: JWT
             String jwtToken = jwtUtil.generateToken(user.getUserName());
 
-            // Inside handleGoogleCallback
-            log.info("User found or created: {}", user);
-
-            log.info("Received Google callback with code: {}", code);
-// ...
-            log.info("User info: email={}, name={}", email, name);
-// ...
             log.info("Generated token: {}", jwtToken);
 
-
-            // Step 5: Redirect to frontend with token and user data
-            // Replace the redirect URL construction:
+            // Step 5: Redirect
             String frontendRedirectUrl = frontendUrl + "/auth-handler"
-                    + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8.toString())
-                    + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8.toString())
-                    + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8.toString());
-
-            response.sendRedirect(frontendRedirectUrl);
-
+                    + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8)
+                    + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8)
+                    + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
 
             log.info("Redirecting to frontend with: {}", frontendRedirectUrl);
-
+            response.sendRedirect(frontendRedirectUrl);
 
         } catch (Exception e) {
             log.error("EXCEPTION DETAILS: ", e);
-            response.sendRedirect(frontendUrl+"/login?error=server_error");
-
+            response.sendRedirect(frontendUrl + "/login?error=server_error");
         }
     }
 }
