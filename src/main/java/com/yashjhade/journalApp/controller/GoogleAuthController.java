@@ -124,9 +124,9 @@ public class GoogleAuthController {
             log.info("User found or created: {}", user);
 
             log.info("Received Google callback with code: {}", code);
-// ...
+
             log.info("User info: email={}, name={}", email, name);
-// ...
+
             log.info("Generated token: {}", jwtToken);
 
 
