@@ -24,8 +24,8 @@ public class User {
     private ObjectId id;
     @Indexed(unique = true)
     @NonNull
-
     private String userName;
+    @Indexed(unique = true)
     private String email;
     private boolean sentimentAnalysis;
 

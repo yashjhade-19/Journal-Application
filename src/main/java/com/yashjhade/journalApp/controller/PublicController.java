@@ -55,6 +55,10 @@ public class PublicController {
                     .body("User with this email already exists");
         }
 
+        if (userRepository.findByUserName(user.getUserName()) != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
+        }
+
         User newUser = new User();
         newUser.setEmail(user.getEmail());
         newUser.setUserName(user.getUserName());
@@ -63,7 +67,7 @@ public class PublicController {
 
         userService.saveNewUser(newUser);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body("User created successfully");
+        return ResponseEntity.status(HttpStatus.OK).body("User created successfully");
     }
 
 
