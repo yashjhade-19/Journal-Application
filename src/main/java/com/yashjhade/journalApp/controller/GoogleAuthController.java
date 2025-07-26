@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,6 +41,7 @@ public class GoogleAuthController {
     @Value("${frontend.url}")
     private String frontendUrl;
 
+
     @Autowired
     private RestTemplate restTemplate;
 
@@ -65,15 +65,14 @@ public class GoogleAuthController {
                 "&access_type=offline" +
                 "&prompt=consent";
 
+        // Return the URL as a plain string instead of JSON object
         return ResponseEntity.ok(authUrl);
     }
 
     @GetMapping("/callback")
-    @Transactional
     public void handleGoogleCallback(@RequestParam String code, HttpServletResponse response) throws IOException {
-        String redirect;
         try {
-            // Step 1: Exchange code for token
+            // Step 1: Exchange authorization code for tokens
             String tokenEndpoint = "https://oauth2.googleapis.com/token";
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
             params.add("code", code);
@@ -87,26 +86,18 @@ public class GoogleAuthController {
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
             ResponseEntity<Map> tokenResponse = restTemplate.postForEntity(tokenEndpoint, request, Map.class);
-            if (tokenResponse.getStatusCode() != HttpStatus.OK || tokenResponse.getBody() == null) {
-                redirect = frontendUrl + "/login?error=token_failed";
-                response.sendRedirect(redirect);
+            if (tokenResponse.getStatusCode() != HttpStatus.OK) {
+                response.sendRedirect(frontendUrl+"/login?error=token_failed");
                 return;
             }
 
+            // Step 2: Get user info from ID token
             String idToken = (String) tokenResponse.getBody().get("id_token");
-            if (idToken == null) {
-                redirect = frontendUrl + "/login?error=missing_id_token";
-                response.sendRedirect(redirect);
-                return;
-            }
-
-            // Step 2: Get user info
             String userInfoUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken;
             ResponseEntity<Map> userInfoResponse = restTemplate.getForEntity(userInfoUrl, Map.class);
 
-            if (userInfoResponse.getStatusCode() != HttpStatus.OK || userInfoResponse.getBody() == null) {
-                redirect = frontendUrl + "/login?error=userinfo_failed";
-                response.sendRedirect(redirect);
+            if (userInfoResponse.getStatusCode() != HttpStatus.OK) {
+                response.sendRedirect(frontendUrl+"/login?error=userinfo_failed");
                 return;
             }
 
@@ -114,42 +105,45 @@ public class GoogleAuthController {
             String email = (String) userInfo.get("email");
             String name = (String) userInfo.get("name");
 
-            if (email == null) {
-                redirect = frontendUrl + "/login?error=missing_email";
-                response.sendRedirect(redirect);
-                return;
+            // Step 3: Create or find user in database
+            User user = userRepository.findByEmail(email);
+            if (user == null) {
+                user = new User();
+                user.setEmail(email);
+                user.setUserName(name != null ? name : email.split("@")[0]);
+                user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+                user.setRoles(Collections.singletonList("USER"));
+                user = userRepository.save(user); // 👈 Save AND reassign
             }
 
-            // Step 3: Check or create user
-            Optional<User> optionalUser = Optional.ofNullable(userRepository.findByEmail(email));
-            User user = optionalUser.orElseGet(() -> {
-                User newUser = new User();
-                newUser.setEmail(email);
-                newUser.setUserName(name != null ? name : email.split("@")[0]);
-                newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
-                newUser.setRoles(Collections.singletonList("USER"));
-                return userRepository.save(newUser);
-            });
 
-            // Step 4: Generate JWT
+            // Step 4: Generate JWT token
             String jwtToken = jwtUtil.generateToken(user.getUserName());
-            log.info("Generated token for {}: {}", email, jwtToken);
 
-            // Step 5: Redirect to frontend
+            // Inside handleGoogleCallback
+            log.info("User found or created: {}", user);
+
+            log.info("Received Google callback with code: {}", code);
+// ...
+            log.info("User info: email={}, name={}", email, name);
+// ...
+            log.info("Generated token: {}", jwtToken);
+
+
+            // Step 5: Redirect to frontend with token and user data
+            // Replace the redirect URL construction:
             String frontendRedirectUrl = frontendUrl + "/auth-handler"
-                    + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8)
-                    + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8)
-                    + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
+                    + "?token=" + URLEncoder.encode(jwtToken, StandardCharsets.UTF_8.toString())
+                    + "&username=" + URLEncoder.encode(user.getUserName(), StandardCharsets.UTF_8.toString())
+                    + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8.toString());
 
-            log.info("Redirecting to frontend with: {}", frontendRedirectUrl);
             response.sendRedirect(frontendRedirectUrl);
 
-        } catch (DataIntegrityViolationException e) {
-            log.warn("Data integrity violation during user creation (likely duplicate)", e);
-            response.sendRedirect(frontendUrl + "/login?error=duplicate_user");
+
         } catch (Exception e) {
-            log.error("Unexpected error in Google callback handler", e);
-            response.sendRedirect(frontendUrl + "/login?error=server_error");
+            log.error("EXCEPTION DETAILS: ", e);
+            response.sendRedirect(frontendUrl+"/login?error=server_error");
+
         }
     }
 }
