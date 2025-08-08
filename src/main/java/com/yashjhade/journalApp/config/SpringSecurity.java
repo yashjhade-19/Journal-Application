@@ -69,7 +69,7 @@ public class SpringSecurity {
         configuration.setAllowedOrigins(Arrays.asList(
                 "https://yashjhade-journal-app.netlify.app",
                 "http://localhost:3000",  // Your frontend URL
-                "https://journal-application-production.up.railway.app" // Production URL
+                "https://journal-app-h4z4.onrender.com" // Production URL
         ));
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS"
