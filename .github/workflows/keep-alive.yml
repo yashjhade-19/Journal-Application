@@ -2,12 +2,14 @@ name: Keep Render Alive
 
 on:
   schedule:
-    - cron: "0 * * * *"   # runs every hour
-  workflow_dispatch:       # allows manual run from GitHub Actions tab
+    - cron: "*/10 * * * *"   # runs every 10 minutes
+  workflow_dispatch:         # allows manual run from GitHub Actions tab
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Render Backend
-        run: curl -s https://journal-app-h4z4.onrender.com > /dev/null
+        run: |
+          echo "Pinging backend at $(date)"
+          curl -I https://journal-app-h4z4.onrender.com || echo "Ping failed"
